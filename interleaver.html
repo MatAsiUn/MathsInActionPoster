@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Error Correcting Codes - Interleaver</title>
+  <link rel="stylesheet" href="css/style.css">
+  <link rel="icon" type="image/svg+xml" href="images/crest-dynamic.svg">
+</head>
+<body>
+
+<header class="white-header">
+  <div class="header-container">
+    <img src="images/crest-dynamic.svg" alt="Warwick Logo" class="warwick-logo">
+    <div class="title-group">
+      <h1 class="main-title">Error Correcting Codes and Their <span class="fix-word">Everyday</span> Applications</h1>
+      <h2 class="sub-title">Mateo Asin Unlu – Mathematics Institute – University of Warwick</h2>
+    </div>
+  </div>
+</header>
+
+<nav class="main-nav">
+  <a href="hamming74.html">Hamming (7,4) Code</a>
+  <a href="interleaver.html">Interleaver</a>
+</nav>
+
+<main class="interleaver-content">
+  <div class="info-panel">
+    <h2>How an Interleaver Works</h2>
+    <p>
+      An interleaver protects data against <strong>burst errors</strong>,
+      it does this by systematically systematically shuffling the sequence of our encoded symbols across multiple
+      distinct codewords. If the channel introduces a large burst error that would cause an error if it was
+      concentrated in 1 codeword, the interleaver ensures that it is split up over many codewords.
+    </p>
+    <p>
+      When a burst of errors hits the transmitted stream, the deinterleaver at the receiver reshuffles the data back
+      to its original order.
+    </p>
+
+    <img src="images/InterleaverImage.svg" alt="Interleaver Block Diagram" class="diagram-img">
+
+    <p>
+      We can see below the effects of an interleaver on codewords of length 8
+    </p>
+    <div class="controls">
+      <label for="burst-start">Burst Start Position (1-32): <span id="start-val">10</span></label>
+      <input type="range" id="burst-start" min="1" max="32" value="10">
+
+      <label for="burst-length">Burst Error Length (1-8): <span id="length-val">5</span></label>
+      <input type="range" id="burst-length" min="1" max="8" value="5">
+    </div>
+  </div>
+
+  <div class="visualizer-panel">
+    <div class="grid-section">
+      <h3>1. Original Data (4 separate codewords of length 8)</h3>
+      <div id="original-grid" class="matrix-grid"></div>
+    </div>
+
+    <div class="grid-section">
+      <h3>2. Transmitted Stream (Interleaved)</h3>
+      <p class="small-text">Data is read column-by-column. Red blocks represent errors.</p>
+      <div id="stream-grid" class="stream-grid"></div>
+    </div>
+
+    <div class="grid-section">
+      <h3>3. Received Data (Deinterleaved)</h3>
+      <p class="small-text">Notice how the burst error is now scattered safely across multiple codeword, and the
+        errors in each individual codeword are minimised</p>
+      <div id="received-grid" class="matrix-grid"></div>
+    </div>
+  </div>
+</main>
+
+<script>
+  const numRows = 4;
+  const numCols = 8;
+  const totalBlocks = numRows * numCols;
+
+  const startSlider = document.getElementById('burst-start');
+  const lengthSlider = document.getElementById('burst-length');
+  const startVal = document.getElementById('start-val');
+  const lengthVal = document.getElementById('length-val');
+
+  function render() {
+    let start = parseInt(startSlider.value) - 1;
+    let length = parseInt(lengthSlider.value);
+
+    startVal.textContent = start + 1;
+    lengthVal.textContent = length;
+
+    let interleavedMap = [];
+    for (let c = 0; c < numCols; c++) {
+      for (let r = 0; r < numRows; r++) {
+        interleavedMap.push({ row: r, col: c, isError: false });
+      }
+    }
+
+    for (let i = start; i < start + length && i < totalBlocks; i++) {
+      interleavedMap[i].isError = true;
+    }
+
+    let origHtml = '';
+    for(let i = 0; i < totalBlocks; i++) {
+      let r = Math.floor(i / numCols);
+      origHtml += `<div class="block row-color-${r}"></div>`;
+    }
+    document.getElementById('original-grid').innerHTML = origHtml;
+
+    let streamHtml = '';
+    for(let i = 0; i < totalBlocks; i++) {
+      let r = interleavedMap[i].row;
+      let errClass = interleavedMap[i].isError ? 'error-block' : '';
+      streamHtml += `<div class="block row-color-${r} ${errClass}"></div>`;
+    }
+    document.getElementById('stream-grid').innerHTML = streamHtml;
+
+
+    let recHtml = '';
+    for (let r = 0; r < numRows; r++) {
+      for (let c = 0; c < numCols; c++) {
+        let blockState = interleavedMap.find(b => b.row === r && b.col === c);
+        let errClass = blockState.isError ? 'error-block' : '';
+        recHtml += `<div class="block row-color-${r} ${errClass}"></div>`;
+      }
+    }
+    document.getElementById('received-grid').innerHTML = recHtml;
+  }
+
+  startSlider.addEventListener('input', render);
+  lengthSlider.addEventListener('input', render);
+  render();
+</script>
+
+</body>
+</html>

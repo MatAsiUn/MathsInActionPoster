@@ -1,0 +1,295 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Error Correcting Codes - Hamming (7,4)</title>
+  <link rel="stylesheet" href="css/style.css">
+  <link rel="icon" type="image/svg+xml" href="images/crest-dynamic.svg">
+  <style>
+    .ascii-box {
+      font-family: monospace;
+      font-size: 1.2rem;
+      background: #f0f4f8;
+      padding: 15px;
+      border-radius: 5px;
+      letter-spacing: 2px;
+      word-break: break-all;
+      color: #3C1053;
+      margin-top: 10px;
+    }
+    /* Updated to match the white-on-red block style */
+    .ascii-error {
+      color: white;
+      background-color: #e63946;
+      border-radius: 3px;
+      padding: 1px 3px;
+      font-weight: bold;
+    }
+  </style>
+</head>
+<body>
+
+<header class="white-header">
+  <div class="header-container">
+    <img src="images/crest-dynamic.svg" alt="Warwick Logo" class="warwick-logo">
+    <div class="title-group">
+      <h1 class="main-title">Error Correcting Codes and Their <span class="fix-word">Everyday</span> Applications</h1>
+      <h2 class="sub-title">Mateo Asin Unlu – Mathematics Institute – University of Warwick</h2>
+    </div>
+  </div>
+</header>
+
+<nav class="main-nav">
+  <a href="hamming74.html">Hamming (7,4) Code</a>
+  <a href="interleaver.html">Interleaver</a>
+</nav>
+
+<main class="hamming-content">
+  <div class="info-panel">
+    <h2>The Hamming (7,4) Code in Action</h2>
+    <p>
+      The Hamming (7,4) code is a [7,4,3]  linear block code with generator matrix:
+    </p>
+    <p>
+       The Hamming (7,4) code can correct a single error in each codeword. Use the text box to input a message in
+      english characters (up to 10 characters). This message will be translated into binary and sent across a binary
+      symmetric channel (BSC). Use the slider to select an error rate for the BSC.
+    </p>
+
+    <div class="controls">
+      <div class="input-group">
+        <label for="message-input">Message (Max 10 chars):</label>
+        <input type="text" id="message-input" maxlength="10" value="Warwick" placeholder="Type here...">
+      </div>
+
+      <div class="input-group">
+        <label for="error-rate">Channel Error Rate: <span id="rate-val">5%</span></label>
+        <input type="range" id="error-rate" min="0.01" max="0.10" step="0.01" value="0.05">
+      </div>
+    </div>
+  </div>
+
+  <div class="visualizer-panel">
+
+    <div class="grid-section">
+      <h3>Original ASCII Binary</h3>
+      <p class="small-text">Your message converted to standard 8-bit binary characters.</p>
+      <div id="orig-ascii-text" class="ascii-box"></div>
+    </div>
+
+    <div class="grid-section">
+      <h3>Transmitted Binary (Encoded)</h3>
+      <p class="small-text">The ASCII binary is split into 4-bit strings. The Hamming Code encodes each 4-bit string
+      into a 7-bit codeword</p>
+      <div id="tx-grid" class="bit-container"></div>
+    </div>
+
+    <div class="grid-section">
+      <h3>Received Binary (After Noisy Channel)</h3>
+      <p class="small-text">Our message is sent across the noisy channel. Bits flipped by the channel are highlighted
+        <span style="color: #e63946; font-weight:
+      bold;">Red</span>.</p>
+
+      <div class="stats-box" style="margin: 15px 0;">
+        <strong>Errors introduced by channel: </strong> <span id="tx-error-count" class="error-text">0</span> <span id="tx-error-label">bits</span>
+      </div>
+
+      <div id="rx-grid" class="bit-container"></div>
+    </div>
+
+    <div class="grid-section">
+      <h3>Decoded Binary</h3>
+      <p class="small-text">
+        We then decode our codewords using nearest neighbour decoding. Successfully corrected errors are <span
+        style="color: #f77f00; font-weight: bold;">Orange</span>.
+        Unfixed errors (or miscorrections) remain <span style="color: #e63946; font-weight: bold;">Red</span>.
+      </p>
+      <div id="dec-grid" class="bit-container"></div>
+    </div>
+
+    <div class="grid-section">
+      <h3>Decoded ASCII Binary</h3>
+      <p class="small-text">The corrected 4-bit data chunks are extracted and reassembled into 8-bit bytes. Uncorrected bits are highlighted.</p>
+      <div id="dec-ascii-text" class="ascii-box"></div>
+
+      <div class="stats-box" style="margin: 15px 0;">
+        <strong>Final Uncorrected Errors: </strong> <span id="error-count" class="error-text">0</span> <span id="error-label">bits</span>
+      </div>
+    </div>
+
+    <div class="grid-section final-text-section">
+      <h3>Reconstructed Message</h3>
+      <p class="small-text">Note that each character corresponds to 8 bits (2 words), both of which must be decoded
+        correctly for the character to match.</p>
+      <div id="final-text" class="final-message-box"></div>
+    </div>
+
+  </div>
+</main>
+
+<script>
+  const msgInput = document.getElementById('message-input');
+  const rateSlider = document.getElementById('error-rate');
+  const rateVal = document.getElementById('rate-val');
+
+  function textToBinary(text) {
+    let bin = "";
+    for (let i = 0; i < text.length; i++) {
+      bin += text[i].charCodeAt(0).toString(2).padStart(8, '0');
+    }
+    return bin;
+  }
+
+  function encodeBlock(bits4) {
+    let d1 = parseInt(bits4[0]), d2 = parseInt(bits4[1]), d3 = parseInt(bits4[2]), d4 = parseInt(bits4[3]);
+    let p1 = d1 ^ d2 ^ d4;
+    let p2 = d1 ^ d3 ^ d4;
+    let p3 = d2 ^ d3 ^ d4;
+    return [p1, p2, d1, p3, d2, d3, d4];
+  }
+
+  function decodeBlock(rxBlock) {
+    let r = [...rxBlock];
+    let s1 = r[0] ^ r[2] ^ r[4] ^ r[6];
+    let s2 = r[1] ^ r[2] ^ r[5] ^ r[6];
+    let s3 = r[3] ^ r[4] ^ r[5] ^ r[6];
+    let syndrome = s1 * 1 + s2 * 2 + s3 * 4;
+
+    if (syndrome > 0) {
+      r[syndrome - 1] = 1 - r[syndrome - 1];
+    }
+
+    return {
+      fixedBlock: r,
+      dataBits: [r[2], r[4], r[5], r[6]]
+    };
+  }
+
+  function simulate() {
+    let text = msgInput.value;
+    let rate = parseFloat(rateSlider.value);
+    rateVal.textContent = Math.round(rate * 100) + '%';
+
+    if (!text) {
+      document.getElementById('orig-ascii-text').textContent = '';
+      document.getElementById('tx-grid').innerHTML = '';
+      document.getElementById('rx-grid').innerHTML = '';
+      document.getElementById('dec-grid').innerHTML = '';
+      document.getElementById('dec-ascii-text').innerHTML = '';
+      document.getElementById('final-text').innerHTML = '';
+
+      document.getElementById('tx-error-count').textContent = '0';
+      document.getElementById('tx-error-label').textContent = 'bits';
+      document.getElementById('error-count').textContent = '0';
+      document.getElementById('error-label').textContent = 'bits';
+      return;
+    }
+
+    let binaryStr = textToBinary(text);
+
+    let spacedOriginal = binaryStr.match(/.{1,8}/g)?.join(' ') || '';
+    document.getElementById('orig-ascii-text').textContent = spacedOriginal;
+
+    let totalErrorsAfterTransmission = 0;
+
+    let asciiErrorCount = 0;
+
+    let txHtml = '';
+    let rxHtml = '';
+    let decHtml = '';
+
+    let reconstructedBinary = '';
+    let decodedAsciiHtml = '';
+    let bitCounter = 0;
+
+    for (let i = 0; i < binaryStr.length; i += 4) {
+      let chunk = binaryStr.slice(i, i + 4);
+      let txBlock = encodeBlock(chunk);
+      let rxBlock = [];
+
+      txHtml += `<div class="hamming-block">`;
+      rxHtml += `<div class="hamming-block">`;
+      decHtml += `<div class="hamming-block">`;
+
+      for (let j = 0; j < 7; j++) {
+        let isError = Math.random() < rate;
+        if (isError) {
+          totalErrorsAfterTransmission++;
+        }
+        rxBlock.push(isError ? 1 - txBlock[j] : txBlock[j]);
+      }
+
+      let decResult = decodeBlock(rxBlock);
+      let decBlock = decResult.fixedBlock;
+
+      for (let k = 0; k < 4; k++) {
+        let origBit = parseInt(chunk[k]);
+        let decBit = decResult.dataBits[k];
+
+        reconstructedBinary += decBit;
+
+        if (origBit !== decBit) {
+          decodedAsciiHtml += `<span class="ascii-error">${decBit}</span>`;
+          asciiErrorCount++;
+        } else {
+          decodedAsciiHtml += decBit;
+        }
+
+        bitCounter++;
+        if (bitCounter % 8 === 0 && bitCounter < binaryStr.length) {
+          decodedAsciiHtml += ' ';
+        }
+      }
+
+      for (let j = 0; j < 7; j++) {
+        let tx = txBlock[j], rx = rxBlock[j], dec = decBlock[j];
+
+        txHtml += `<span class="bit">${tx}</span>`;
+
+        let rxClass = (tx !== rx) ? 'bit bit-red' : 'bit';
+        rxHtml += `<span class="${rxClass}">${rx}</span>`;
+
+        let decClass = 'bit';
+        if (tx !== rx && dec === tx) {
+          decClass = 'bit bit-orange';
+        } else if (dec !== tx) {
+          decClass = 'bit bit-red';
+        }
+        decHtml += `<span class="${decClass}">${dec}</span>`;
+      }
+
+      txHtml += `</div>`;
+      rxHtml += `</div>`;
+      decHtml += `</div>`;
+    }
+
+    let finalStr = '';
+    for (let i = 0; i < reconstructedBinary.length; i += 8) {
+      let byteStr = reconstructedBinary.slice(i, i + 8);
+      let charCode = parseInt(byteStr, 2);
+      finalStr += String.fromCharCode(charCode);
+    }
+
+    document.getElementById('tx-grid').innerHTML = txHtml;
+    document.getElementById('rx-grid').innerHTML = rxHtml;
+    document.getElementById('dec-grid').innerHTML = decHtml;
+    document.getElementById('dec-ascii-text').innerHTML = decodedAsciiHtml;
+    document.getElementById('final-text').textContent = finalStr;
+
+    document.getElementById('tx-error-count').textContent = totalErrorsAfterTransmission;
+    document.getElementById('tx-error-label').textContent = totalErrorsAfterTransmission === 1 ? 'bit' : 'bits';
+
+
+    document.getElementById('error-count').textContent = asciiErrorCount;
+    document.getElementById('error-label').textContent = asciiErrorCount === 1 ? 'bit' : 'bits';
+  }
+
+  msgInput.addEventListener('input', simulate);
+  rateSlider.addEventListener('input', simulate);
+
+  simulate();
+</script>
+
+</body>
+</html>
